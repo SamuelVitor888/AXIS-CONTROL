@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AxisPartnersControl - Dashboard de Facebook Ads</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (Versões específicas para estabilidade) -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Prop-types (Dependência comum para Recharts em UMD) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    
+    <!-- Recharts (Versão fixa compatível com React 18) -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
+    <!-- Babel (para compilar JSX no browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 font-sans selection:bg-indigo-500 selection:text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Garantir que as bibliotecas estão disponíveis
+        const { useState, useEffect, useMemo } = React;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } = window.Recharts;
+
+        // --- SISTEMA DE ÍCONES (SVG Nativos para HTML Único) ---
+        const Icons = {
+            LayoutDashboard: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>,
+            Users: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            BarChart3: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
+            Settings: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            ChevronLeft: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
+            ChevronRight: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+            TrendingUp: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+            TrendingDown: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>,
+            DollarSign: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+            Eye: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>,
+            MoreHorizontal: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>,
+            RefreshCcw: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>,
+            Facebook: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>,
+            LogOut: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
+            CheckCircle2: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>,
+            ShieldCheck: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>,
+            ArrowRight: (props) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        };
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const IconComponent = Icons[name];
+            return IconComponent ? <IconComponent width={size} height={size} className={className} /> : null;
+        };
+
+        // --- MOCK DATA ---
+        const MOCK_DATA = {
+            kpis: [
+                { label: 'Impressões', value: '845.2K', change: 12.5, type: 'neutral', icon: 'Eye' },
+                { label: 'Valor Gasto', value: '€ 4.250', change: 8.2, type: 'negative', icon: 'DollarSign' },
+                { label: 'ROAS', value: '4.8x', change: 15.3, type: 'positive', icon: 'TrendingUp' },
+                { label: 'Leads (CPL)', value: '€ 5,20', change: -4.1, type: 'positive', icon: 'Users' },
+            ],
+            charts: {
+                performance: [
+                    { date: '01/10', spend: 120, roas: 3.2 },
+                    { date: '05/10', spend: 150, roas: 3.8 },
+                    { date: '10/10', spend: 180, roas: 4.5 },
+                    { date: '15/10', spend: 140, roas: 5.2 },
+                    { date: '20/10', spend: 200, roas: 4.1 },
+                    { date: '25/10', spend: 250, roas: 3.9 },
+                    { date: '30/10', spend: 220, roas: 5.5 },
+                ],
+                placements: [
+                    { name: 'IG Stories', value: 45 },
+                    { name: 'IG Feed', value: 30 },
+                    { name: 'FB Feed', value: 15 },
+                    { name: 'Audience Net', value: 10 },
+                ]
+            },
+            campaigns: [
+                { id: 1, name: 'Promoção Black Friday - Conv', status: 'active', results: 145, cost: '€ 1.200', cpr: '€ 8,27' },
+                { id: 2, name: 'Branding Institucional - Vid', status: 'active', results: 4500, cost: '€ 850', cpr: '€ 0,18' },
+                { id: 3, name: 'Remarketing Checkout', status: 'paused', results: 32, cost: '€ 400', cpr: '€ 12,50' },
+                { id: 4, name: 'Lead Magnet - Ebook', status: 'active', results: 320, cost: '€ 600', cpr: '€ 1,87' },
+            ],
+            crm: {
+                new: [
+                    { id: 101, name: 'Ricardo Silva', source: 'IG Stories', time: '10 min' },
+                    { id: 102, name: 'Ana Souza', source: 'FB Feed', time: '2h' },
+                ],
+                contact: [
+                    { id: 103, name: 'Construtora Vale', source: 'Google Ads', time: '1d' },
+                ],
+                scheduled: [
+                    { id: 104, name: 'Marcos Pires', source: 'Indicação', time: '3d' },
+                    { id: 105, name: 'Clinica Bem Estar', source: 'IG Feed', time: '3d' },
+                ],
+                sold: [
+                    { id: 106, name: 'Tech Solutions', source: 'LinkedIn', value: '€ 5k' },
+                ]
+            }
+        };
+
+        // --- HOOK DE INTEGRAÇÃO (SIMULADO) ---
+        const useFacebookAds = () => {
+            const [loading, setLoading] = useState(false);
+            const [data, setData] = useState(null);
+            const [isConnected, setIsConnected] = useState(false);
+            const [userProfile, setUserProfile] = useState(null);
+
+            const connectFacebook = () => {
+                setLoading(true);
+                // Simulação de delay da API e OAuth
+                setTimeout(() => {
+                    setIsConnected(true);
+                    setData(MOCK_DATA);
+                    setUserProfile({
+                        name: 'Gestor de Tráfego',
+                        email: 'gestor@agencia.com',
+                        adAccount: 'Conta Principal (act_9923...)'
+                    });
+                    setLoading(false);
+                }, 2000);
+            };
+
+            const disconnectFacebook = () => {
+                setIsConnected(false);
+                setData(null);
+                setUserProfile(null);
+            };
+
+            const refreshData = () => {
+                if (!isConnected) return;
+                setLoading(true);
+                setTimeout(() => setLoading(false), 800);
+            };
+
+            return { loading, data, isConnected, userProfile, connectFacebook, disconnectFacebook, refreshData };
+        };
+
+        // --- COMPONENTES DA UI ---
+
+        const LoginScreen = ({ onConnect, isLoading }) => (
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]"></div>
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]"></div>
+                </div>
+
+                <div className="z-10 max-w-md w-full bg-slate-800/80 backdrop-blur-xl border border-slate-700 p-8 rounded-2xl shadow-2xl text-center animate-fadeIn">
+                    <div className="w-16 h-16 bg-blue-600 rounded-xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
+                        <Icon name="Facebook" size={32} className="text-white" />
+                    </div>
+                    
+                    <h1 className="text-2xl font-bold text-white mb-2">Conectar Conta de Anúncios</h1>
+                    <p className="text-slate-400 mb-8">
+                        Integre a sua conta do Facebook Ads para visualizar métricas em tempo real, gerir leads e analisar o ROI.
+                    </p>
+
+                    <div className="space-y-4 mb-8 text-left bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                        <div className="flex items-center gap-3 text-sm text-slate-300">
+                            <Icon name="CheckCircle2" size={16} className="text-emerald-400" />
+                            <span>Leitura de dados de Campanhas</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-slate-300">
+                            <Icon name="CheckCircle2" size={16} className="text-emerald-400" />
+                            <span>Sincronização de Leads (CRM)</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-slate-300">
+                            <Icon name="CheckCircle2" size={16} className="text-emerald-400" />
+                            <span>Acesso a Insights de Desempenho</span>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={onConnect}
+                        disabled={isLoading}
+                        className="w-full bg-[#1877F2] hover:bg-[#166fe5] text-white font-semibold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed group shadow-lg shadow-blue-900/20"
+                    >
+                        {isLoading ? (
+                            <React.Fragment>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <span>A Conectar...</span>
+                            </React.Fragment>
+                        ) : (
+                            <React.Fragment>
+                                <Icon name="Facebook" size={20} />
+                                <span>Continuar com Facebook</span>
+                                <Icon name="ArrowRight" size={18} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                            </React.Fragment>
+                        )}
+                    </button>
+                    
+                    <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
+                        <Icon name="ShieldCheck" size={14} />
+                        <span>Conexão Segura e Criptografada</span>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const KPICard = ({ title, value, change, type, icon }) => {
+            const isPositive = type === 'positive';
+            const isNeutral = type === 'neutral';
+            
+            let changeColor = 'text-gray-400';
+            if (change > 0 && isPositive) changeColor = 'text-emerald-400';
+            if (change < 0 && !isPositive) changeColor = 'text-rose-400';
+            if (change > 0 && !isPositive) changeColor = 'text-rose-400';
+            if (change < 0 && isPositive) changeColor = 'text-emerald-400';
+
+            return (
+                <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg hover:border-slate-600 transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
+                            <h3 className="text-2xl font-bold text-white">{value}</h3>
+                        </div>
+                        <div className={`p-2 rounded-lg bg-slate-700/50 group-hover:bg-slate-700 transition-colors ${isNeutral ? 'text-blue-400' : 'text-indigo-400'}`}>
+                            <Icon name={icon} size={20} />
+                        </div>
+                    </div>
+                    <div className="flex items-center text-xs">
+                        <span className={`flex items-center font-medium ${changeColor}`}>
+                            <Icon name={change > 0 ? "TrendingUp" : "TrendingDown"} size={14} className="mr-1" />
+                            {Math.abs(change)}%
+                        </span>
+                        <span className="text-slate-500 ml-2">vs. mês anterior</span>
+                    </div>
+                </div>
+            );
+        };
+
+        const KanbanCard = ({ lead }) => (
+            <div className="bg-slate-700 p-3 rounded-lg mb-3 border border-slate-600 shadow-sm cursor-pointer hover:bg-slate-600 transition-colors group">
+                <div className="flex justify-between items-start">
+                    <h4 className="font-semibold text-slate-100 text-sm">{lead.name}</h4>
+                    <Icon name="MoreHorizontal" size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <div className="mt-2 flex justify-between items-center text-xs">
+                    <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] font-medium border border-indigo-500/30">
+                        {lead.source}
+                    </span>
+                    <span className="text-slate-400">{lead.value || lead.time}</span>
+                </div>
+            </div>
+        );
+
+        const KanbanColumn = ({ title, count, color, leads }) => (
+            <div className="flex-1 min-w-[250px] bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${color}`}></div>
+                        <h3 className="font-medium text-slate-300 text-sm">{title}</h3>
+                    </div>
+                    <span className="bg-slate-700 text-slate-400 px-2 py-0.5 rounded text-xs">{count}</span>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                    {leads.map(lead => <KanbanCard key={lead.id} lead={lead} />)}
+                </div>
+            </div>
+        );
+
+        const SidebarItem = ({ icon, label, isActive, isOpen, onClick }) => (
+            <button
+                onClick={onClick}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group relative
+                    ${isActive 
+                        ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20' 
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                    }
+                    ${!isOpen && 'justify-center'}
+                `}
+            >
+                <Icon name={icon} size={20} className={isActive ? 'text-indigo-400' : 'group-hover:text-white'} />
+                {isOpen && <span className="text-sm font-medium">{label}</span>}
+                
+                {!isOpen && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap border border-slate-700 shadow-xl">
+                        {label}
+                    </div>
+                )}
+            </button>
+        );
+
+        // --- APP PRINCIPAL ---
+        
+        function App() {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+            const { loading, data, isConnected, userProfile, connectFacebook, disconnectFacebook, refreshData } = useFacebookAds();
+            const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e'];
+
+            if (!isConnected) {
+                return <LoginScreen onConnect={connectFacebook} isLoading={loading} />;
+            }
+
+            const renderDashboard = () => (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-2xl font-bold text-white">Visão Geral</h2>
+                            <p className="text-slate-400 text-sm">Atualizado em tempo real via Graph API</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={refreshData}
+                                disabled={loading}
+                                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg border border-slate-700 text-sm transition-colors disabled:opacity-50"
+                            >
+                                <Icon name="RefreshCcw" size={16} className={loading ? "animate-spin" : ""} /> Atualizar
+                            </button>
+                            <div className="flex items-center gap-2 bg-blue-900/30 text-blue-200 px-4 py-2 rounded-lg text-sm font-medium border border-blue-500/30">
+                                <Icon name="Facebook" size={16} /> Conta Conectada
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {data.kpis.map((kpi, idx) => (
+                            <KPICard key={idx} {...kpi} title={kpi.label} />
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                            <h3 className="text-lg font-semibold text-white mb-6">Investimento vs. ROAS</h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={data.charts.performance}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                                        <XAxis dataKey="date" stroke="#94a3b8" tick={{fontSize: 12}} tickLine={false} axisLine={false} />
+                                        <YAxis yAxisId="left" stroke="#94a3b8" tick={{fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value}`} />
+                                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{fontSize: 12}} tickLine={false} axisLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', borderRadius: '8px' }}
+                                            itemStyle={{ color: '#e2e8f0' }}
+                                        />
+                                        <Legend />
+                                        <Line yAxisId="left" type="monotone" dataKey="spend" name="Investimento" stroke="#6366f1" strokeWidth={3} dot={{r: 4, fill: '#6366f1'}} activeDot={{r: 6}} />
+                                        <Line yAxisId="right" type="monotone" dataKey="roas" name="ROAS" stroke="#10b981" strokeWidth={3} dot={{r: 4, fill: '#10b981'}} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                            <h3 className="text-lg font-semibold text-white mb-2">Posicionamentos</h3>
+                            <div className="h-[300px] w-full flex flex-col items-center justify-center">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={data.charts.placements}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {data.charts.placements.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
+                                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-lg overflow-hidden">
+                        <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+                            <h3 className="text-lg font-semibold text-white">Campanhas Ativas</h3>
+                            <button className="text-indigo-400 text-sm hover:text-indigo-300 font-medium">Ver todas</button>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm text-slate-400">
+                                <thead className="bg-slate-900/50 text-slate-200 font-medium">
+                                    <tr>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4">Nome da Campanha</th>
+                                        <th className="px-6 py-4 text-right">Resultados</th>
+                                        <th className="px-6 py-4 text-right">Custo por Result.</th>
+                                        <th className="px-6 py-4 text-right">Valor Gasto</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700/50">
+                                    {data.campaigns.map((camp) => (
+                                        <tr key={camp.id} className="hover:bg-slate-700/30 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                                    ${camp.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-600/20 text-slate-400'}`}>
+                                                    {camp.status === 'active' ? 'Ativo' : 'Pausado'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 font-medium text-slate-200">{camp.name}</td>
+                                            <td className="px-6 py-4 text-right">{camp.results}</td>
+                                            <td className="px-6 py-4 text-right">{camp.cpr}</td>
+                                            <td className="px-6 py-4 text-right text-slate-200">{camp.cost}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const renderCRM = () => (
+                <div className="h-[calc(100vh-140px)] flex flex-col animate-fadeIn">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold text-white">Pipeline de Vendas</h2>
+                            <p className="text-slate-400 text-sm">Gerencie os leads vindos do Facebook Ads</p>
+                        </div>
+                        <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                            + Novo Lead
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-x-auto pb-4">
+                        <div className="flex gap-4 h-full min-w-[1000px]">
+                            <KanbanColumn 
+                                title="Novos Leads" 
+                                count={data.crm.new.length} 
+                                color="bg-blue-400" 
+                                leads={data.crm.new} 
+                            />
+                            <KanbanColumn 
+                                title="Em Contato" 
+                                count={data.crm.contact.length} 
+                                color="bg-yellow-400" 
+                                leads={data.crm.contact} 
+                            />
+                            <KanbanColumn 
+                                title="Agendamento" 
+                                count={data.crm.scheduled.length} 
+                                color="bg-purple-400" 
+                                leads={data.crm.scheduled} 
+                            />
+                            <KanbanColumn 
+                                title="Vendido / Fechado" 
+                                count={data.crm.sold.length} 
+                                color="bg-emerald-400" 
+                                leads={data.crm.sold} 
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="flex h-screen bg-slate-900 overflow-hidden text-slate-200">
+                    <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out flex flex-col relative z-20 shadow-xl`}>
+                        <div className="h-20 flex items-center justify-center border-b border-slate-800">
+                            {isSidebarOpen ? (
+                                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
+                                    AxisPartnersControl
+                                </h1>
+                            ) : (
+                                <div className="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-cyan-500"></div>
+                            )}
+                        </div>
+
+                        <nav className="flex-1 py-6 px-3 space-y-2">
+                            <SidebarItem icon="LayoutDashboard" label="Dashboard" isActive={activeTab === 'dashboard'} isOpen={isSidebarOpen} onClick={() => setActiveTab('dashboard')} />
+                            <SidebarItem icon="Users" label="CRM Pipeline" isActive={activeTab === 'crm'} isOpen={isSidebarOpen} onClick={() => setActiveTab('crm')} />
+                            <SidebarItem icon="BarChart3" label="Relatórios" isActive={activeTab === 'reports'} isOpen={isSidebarOpen} onClick={() => setActiveTab('reports')} />
+                            <div className="my-4 border-t border-slate-800/50"></div>
+                            <SidebarItem icon="Settings" label="Configurações" isActive={activeTab === 'settings'} isOpen={isSidebarOpen} onClick={() => setActiveTab('settings')} />
+                        </nav>
+
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="absolute -right-3 top-24 bg-slate-800 border border-slate-700 text-slate-400 rounded-full p-1 hover:text-white hover:border-indigo-500 transition-colors">
+                            <Icon name={isSidebarOpen ? "ChevronLeft" : "ChevronRight"} size={14} />
+                        </button>
+
+                        <div className="p-4 border-t border-slate-800">
+                            <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
+                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">
+                                    {userProfile ? userProfile.name.charAt(0) : 'U'}
+                                </div>
+                                {isSidebarOpen && (
+                                    <div className="overflow-hidden">
+                                        <p className="text-sm font-medium text-white truncate">{userProfile ? userProfile.name : 'User'}</p>
+                                        <p className="text-xs text-slate-500 truncate cursor-pointer hover:text-red-400 flex items-center gap-1" onClick={disconnectFacebook}>
+                                            Sair <Icon name="LogOut" size={10} />
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </aside>
+
+                    <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-900">
+                        <header className="h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-10 px-8 flex items-center justify-between">
+                            <div className="flex items-center text-slate-400 text-sm">
+                                <span className="hover:text-white cursor-pointer">Home</span>
+                                <Icon name="ChevronRight" size={14} className="mx-2" />
+                                <span className="text-white font-medium capitalize">{activeTab}</span>
+                            </div>
+                        </header>
+
+                        <div className="p-8">
+                            {activeTab === 'dashboard' && renderDashboard()}
+                            {activeTab === 'crm' && renderCRM()}
+                            {['reports', 'settings'].includes(activeTab) && (
+                                <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
+                                    <Icon name="Settings" size={48} className="mb-4 opacity-50" />
+                                    <p>Módulo em desenvolvimento...</p>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
